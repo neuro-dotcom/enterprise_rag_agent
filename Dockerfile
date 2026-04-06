@@ -2,15 +2,12 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install dependencies
+# Standard Setup
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all project files
+# Copy all files (including knowledge_base.md)
 COPY . .
 
-# Give the system permission to run our start script
-RUN chmod +x start.sh
-
-# Run the start script instead of the bot directly
-CMD ["./start.sh"]
+# Run the bot directly
+CMD ["python", "main.py"]
