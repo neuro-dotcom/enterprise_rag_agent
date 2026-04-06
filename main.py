@@ -2,10 +2,24 @@ import os
 import telebot
 import chromadb
 import time
+import socket
 from google import genai
 from dotenv import load_dotenv
 
-# 1. Load Environment & Connect to APIs
+# ==========================================
+# 🛑 THE DNS BYPASS (Hugging Face Workaround)
+# ==========================================
+# This tells Python: "Don't ask the server where Telegram is. 
+# Go directly to this specific IP address."
+orig_getaddrinfo = socket.getaddrinfo
+def patched_getaddrinfo(*args, **kwargs):
+    if args[0] == 'api.telegram.org':
+        # 149.154.167.220 is a primary IP for the Telegram Bot API
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('149.154.167.220', 443))]
+    return orig_getaddrinfo(*args, **kwargs)
+socket.getaddrinfo = patched_getaddrinfo
+# ==========================================
+
 load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
@@ -13,7 +27,7 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 if not TELEGRAM_BOT_TOKEN or not GOOGLE_API_KEY:
     raise ValueError("CRITICAL ERROR: Missing API keys in .env!")
 
-# 2. Connect to the Brain (ChromaDB)
+# Connect to the Brain
 print("Connecting to Vector Database...")
 db = chromadb.PersistentClient(path="./chroma_db")
 collection = db.get_collection(name="aura_manual")
@@ -21,7 +35,6 @@ collection = db.get_collection(name="aura_manual")
 client = genai.Client(api_key=GOOGLE_API_KEY)
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 
-# 3. The RAG Engine
 @bot.message_handler(func=lambda message: True)
 def handle_support_query(message):
     try:
@@ -50,18 +63,16 @@ def handle_support_query(message):
         bot.reply_to(message, response.text)
     except Exception as e:
         print(f"Error handling message: {e}")
-        bot.reply_to(message, "I encountered a technical glitch. Please try again in a moment.")
+        bot.reply_to(message, "I'm having trouble connecting to my knowledge base. Try again in a second.")
 
-# 4. ROBUST STARTUP LOOP
-print("🤖 Aura Support Agent is attempting to connect to Telegram...")
+print("🤖 Aura Support Agent is attempting to bypass DNS and connect...")
 
 while True:
     try:
-        # Test the connection before starting
         bot_user = bot.get_me()
-        print(f"✅ CONNECTED: Bot @{bot_user.username} is online!")
+        print(f"✅ CONNECTED: Bot @{bot_user.username} is online via DNS bypass!")
         bot.polling(none_stop=True, timeout=60)
     except Exception as e:
         print(f"❌ Connection Failed: {e}")
-        print("Retrying in 15 seconds...")
-        time.sleep(15)
+        print("Retrying in 10 seconds...")
+        time.sleep(10)
