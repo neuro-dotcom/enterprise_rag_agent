@@ -55,7 +55,7 @@ def handle_query(m):
         context = "\n\n".join(res['documents'][0])
         
         prompt = f"You are a Support AI. Use this manual: {context}\n\nUser Question: {m.text}"
-        response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
+        response = client.models.generate_content(model='gemini-1.5-flash', contents=prompt)
         bot.reply_to(m, response.text)
     except Exception as e:
         log(f"❌ CHAT ERROR: {e}")
