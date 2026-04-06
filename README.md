@@ -1,15 +1,8 @@
-# Python UV Starter
-
-This is a simple Python [uv](https://docs.astral.uv) starter in Firebase Studio.
-
-## Running
-
-```
-uv run main.py
-```
-
-## Add dependencies
-
-```
-uv add ruff
-```
+---
+title: Enterprise RAG Agent
+emoji: 🤖
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+---
