@@ -2,52 +2,48 @@ import os
 import telebot
 import chromadb
 import time
-import socket
+import threading
+from flask import Flask
 from google import genai
 from dotenv import load_dotenv
 
-# ==========================================
-# 🌐 THE ENTERPRISE NETWORK FIX (Force IPv4)
-# ==========================================
-# Hugging Face 2026 Docker spaces have IPv6 DNS issues with Telegram.
-# This forces the system to use IPv4 only.
-orig_getaddrinfo = socket.getaddrinfo
-def patched_getaddrinfo(*args, **kwargs):
-    responses = orig_getaddrinfo(*args, **kwargs)
-    return [res for res in responses if res[0] == socket.AF_INET]
-socket.getaddrinfo = patched_getaddrinfo
-# ==========================================
+# 1. THE HEALTH CHECK SERVER (Required by Hugging Face)
+app = Flask(__name__)
+@app.route('/')
+def health_check():
+    return "Bot is healthy!", 200
 
+def run_flask():
+    # Hugging Face looks for a server on port 7860
+    app.run(host='0.0.0.0', port=7860)
+
+# Start the health check in a background thread
+threading.Thread(target=run_flask, daemon=True).start()
+
+# 2. LOAD & INITIALIZE
 load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
-# Initialize Clients
 client = genai.Client(api_key=GOOGLE_API_KEY)
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 
-def build_knowledge_base():
-    """Builds the brain if it doesn't exist."""
-    if not os.path.exists("./chroma_db"):
-        print("🧠 Building the Brain for the first time...")
-        db = chromadb.PersistentClient(path="./chroma_db")
-        collection = db.get_or_create_collection(name="aura_manual")
-        
-        with open("knowledge_base.md", "r", encoding="utf-8") as f:
-            chunks = [c.strip() for c in f.read().split("\n\n") if c.strip()]
-        
-        for i, chunk in enumerate(chunks):
-            response = client.models.embed_content(model='gemini-embedding-001', contents=chunk)
-            collection.add(ids=[f"c{i}"], embeddings=[response.embeddings[0].values], documents=[chunk])
-        print("✅ Brain built successfully.")
-    else:
-        print("🧠 Brain already exists. Loading...")
-
-# Connect to Database
-build_knowledge_base()
+# 3. KNOWLEDGE BASE LOGIC
+print("🧠 Checking Knowledge Base...")
 db = chromadb.PersistentClient(path="./chroma_db")
-collection = db.get_collection(name="aura_manual")
+collection = db.get_or_create_collection(name="aura_manual")
 
+# Only build if empty
+if collection.count() == 0:
+    print("📥 Ingesting manual...")
+    with open("knowledge_base.md", "r", encoding="utf-8") as f:
+        chunks = [c.strip() for c in f.read().split("\n\n") if c.strip()]
+    for i, chunk in enumerate(chunks):
+        res = client.models.embed_content(model='gemini-embedding-001', contents=chunk)
+        collection.add(ids=[f"c{i}"], embeddings=[res.embeddings[0].values], documents=[chunk])
+    print("✅ Brain built.")
+
+# 4. BOT LOGIC
 @bot.message_handler(func=lambda message: True)
 def handle_support_query(message):
     try:
@@ -56,8 +52,7 @@ def handle_support_query(message):
         results = collection.query(query_embeddings=[embed_res.embeddings[0].values], n_results=2)
         
         system_prompt = f"""
-        You are an Aura Smart Home AI support agent. 
-        Use the manual to answer: {results['documents'][0]}
+        You are an Aura Smart Home AI. Use this manual text: {results['documents'][0]}
         If not in manual, say: "Please contact support@aurasmart.com."
         """
         
@@ -66,11 +61,14 @@ def handle_support_query(message):
     except Exception as e:
         print(f"Error: {e}")
 
-print("🤖 Aura Support Agent is attempting to connect...")
+# 5. RESILIENT POLLING
+print("🤖 Aura Support Agent is starting...")
 while True:
     try:
-        print(f"Connected to @{bot.get_me().username}")
+        # Check connection
+        me = bot.get_me()
+        print(f"✅ SUCCESS: Connected to @{me.username}")
         bot.polling(none_stop=True, timeout=90)
     except Exception as e:
-        print(f"❌ Connection error: {e}. Retrying...")
+        print(f"❌ Connection error: {e}. Retrying in 10s...")
         time.sleep(10)
