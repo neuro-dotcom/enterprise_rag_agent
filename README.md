@@ -20,10 +20,11 @@ An autonomous, cloud-deployed AI Support Agent built for Telegram. This bot util
 * **Network Ops:** Flask-based health checks, IPv4 forced routing, and hardcoded DNS bypass for cloud resilience.
 
 ## 🚀 Key Features
-1. **Strict Context Grounding:** The bot is instructed to answer *only* using the provided `knowledge_base.md`. If a user asks an out-of-domain question, it respectfully escalates to human support.
-2. **Dynamic Ingestion:** The vector database is built at runtime. Updating the bot's knowledge is as simple as replacing the markdown file and restarting the container.
-3. **Zero-Downtime Resilience:** Includes custom socket patching and background HTTP ping servers to bypass strict cloud DNS limitations.
-4. **Access Control:** Secured via Telegram Chat ID verification to prevent unauthorized API quota drain.
+1. **Strict Context Grounding:** The bot is instructed to answer *only* using the provided `knowledge_base.md`. Out-of-domain questions are respectfully escalated to human support.
+2. **Dynamic Vector Ingestion:** The ChromaDB database is built at runtime. Updating the AI's knowledge is as simple as modifying the markdown file.
+3. **Role-Based Access Control (RBAC):** Secured via Telegram Chat ID verification to prevent unauthorized API quota drain. Includes a built-in `/admin` dashboard.
+4. **Persistent Demo Quota System:** Admins can securely issue temporary "Guest Passes" allowing recruiters or technical directors exactly 2 queries (ideal for testing 1 in-domain and 1 out-of-domain request) before automatically revoking access via a JSON state ledger.
+5. **Zero-Downtime Resilience:** Utilizes custom socket patching and background HTTP ping servers to bypass strict cloud DNS limitations.
 
 ## 🛠️ How It Works
 1. A user sends a support question via Telegram.
