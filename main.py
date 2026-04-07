@@ -83,6 +83,34 @@ def process_guest_id(m):
         bot.reply_to(m, "❌ Invalid ID. Please enter numbers only. Try /admin again.")
 
 # ==========================================
+# 🆓 FREE STATIC COMMANDS (No Quota Cost)
+# ==========================================
+@bot.message_handler(commands=['start', 'help', 'connect_human'])
+def handle_free_commands(m):
+    user_id = str(m.chat.id)
+    is_admin = (m.chat.id == ADMIN_CHAT_ID)
+    guests = load_guests()
+    is_guest = user_id in guests
+
+    # Bouncer Check (Must be Admin or active Guest)
+    if not is_admin:
+        if not is_guest:
+            bot.reply_to(m, "⛔ Access Denied: Enterprise system restricted.")
+            return
+        if guests[user_id] <= 0:
+            bot.reply_to(m, "🛑 Demo complete. Thank you for testing.")
+            return
+
+    # Static Responses (Costs 0 Tokens, 0 Quota)
+    if m.text.startswith('/start'):
+        bot.reply_to(m, "👋 Welcome to the Aura RAG Demo! I am grounded in the official manual. Ask me a technical question about your device.")
+    elif m.text.startswith('/help'):
+        bot.reply_to(m, "ℹ️ Type your support question naturally. I will search the manual for the exact answer.")
+    elif m.text.startswith('/connect_human'):
+        bot.reply_to(m, "📞 Escaping AI loop... A human agent would take over here. (This is a static demo response).")
+
+
+# ==========================================
 # 🧠 RAG HANDLER WITH SMART BOUNCER
 # ==========================================
 @bot.message_handler(func=lambda m: True)
