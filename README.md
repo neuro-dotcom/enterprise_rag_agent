@@ -17,6 +17,7 @@ An autonomous, cloud-deployed AI Support Agent built for Telegram. This bot util
 * **Vector Database:** ChromaDB (for semantic memory and document retrieval)
 * **Interface:** Telegram Bot API (`pyTelegramBotAPI`)
 * **Infrastructure:** Docker, Hugging Face Spaces
+* **Database (RBAC):** Local persistent JSON ledger for user state.
 * **Network Ops:** Flask-based health checks, IPv4 forced routing, and hardcoded DNS bypass for cloud resilience.
 
 ## 🚀 Key Features
