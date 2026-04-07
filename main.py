@@ -3,24 +3,17 @@ from flask import Flask
 from google import genai
 from dotenv import load_dotenv
 
-# ==========================================
-# 🛑 THE "ZERO-DOUBT" DNS BYPASS
-# ==========================================
-# Hugging Face 2026 DNS is currently failing to resolve Telegram.
-# We are hardcoding the IP (149.154.167.220) directly.
+# --- HARDCODED IP BYPASS ---
 orig_getaddrinfo = socket.getaddrinfo
 def patched_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
     if host == 'api.telegram.org':
-        # Force the connection to the physical IP address of Telegram
         return [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('149.154.167.220', 443))]
     return orig_getaddrinfo(host, port, family, type, proto, flags)
 socket.getaddrinfo = patched_getaddrinfo
 
-# --- LOGGING ---
-def log(msg):
-    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
+def log(msg): print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
 
-# --- HEALTH CHECK (Satisfies Hugging Face Policy) ---
+# --- HEALTH CHECK ---
 app = Flask(__name__)
 @app.route('/')
 def health(): return "Aura Bot is Online", 200
@@ -32,7 +25,10 @@ log("🚀 STARTING AURA SUPPORT AGENT...")
 client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 bot = telebot.TeleBot(os.getenv("TELEGRAM_BOT_TOKEN"))
 
-# --- BRAIN BUILDING (Runtime) ---
+# Grab the Admin ID from the environment (default to 0 if missing to fail securely)
+ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", 0))
+
+# --- BRAIN BUILDING ---
 db = chromadb.PersistentClient(path="./chroma_db")
 col = db.get_or_create_collection(name="aura_manual")
 
@@ -45,11 +41,17 @@ if col.count() == 0:
         col.add(ids=[f"c{i}"], embeddings=[res.embeddings[0].values], documents=[chunk])
     log(f"✅ Brain built with {len(chunks)} chunks.")
 
-# --- RAG HANDLER ---
+# --- RAG HANDLER WITH LOCKDOWN ---
 @bot.message_handler(func=lambda m: True)
 def handle_query(m):
+    # 🛑 THE PERIMETER LOCKDOWN
+    if m.chat.id != ADMIN_CHAT_ID:
+        log(f"⚠️ UNAUTHORIZED ACCESS ATTEMPT FROM ID: {m.chat.id}")
+        bot.reply_to(m, "⛔ Access Denied: Enterprise system restricted to authorized neuro-dotcom administrators.")
+        return
+
     try:
-        log(f"📩 Query received: {m.text[:30]}...")
+        log(f"📩 Authorized Query: {m.text[:30]}...")
         embed = client.models.embed_content(model='gemini-embedding-001', contents=m.text)
         res = col.query(query_embeddings=[embed.embeddings[0].values], n_results=2)
         context = "\n\n".join(res['documents'][0])
@@ -64,7 +66,6 @@ def handle_query(m):
 log("🤖 Attempting Telegram connection via Hardcoded IP...")
 while True:
     try:
-        # We skip bot.get_me() to save a request and go straight to listening
         bot.infinity_polling(timeout=90, long_polling_timeout=30)
     except Exception as e:
         log(f"⚠️ RECONNECTING: {e}")
