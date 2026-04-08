@@ -1,0 +1,21 @@
+# Ignore Git history
+.git
+.gitignore
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ⚠️ CRITICAL: Never copy the actual secret environment file into the image!
+.env
+
+# Ignore IDE settings (VSCode, PyCharm)
+.vscode/
+.idea/
+
+# Ignore local databases or temp files
+*.sqlite3
+*.db
+user_preferences.json
